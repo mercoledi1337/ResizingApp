@@ -145,7 +145,7 @@
                                      VerticalContentAlignment="Center"
                                      Padding="5"
                                      Foreground="#cfcfcf"
-                                     x:Name="width" TextChanged="width_TextChanged" />
+                                     x:Name="width"  />
 
                         <TextBlock IsHitTestVisible="False"
                                        Text="Width %"

@@ -97,39 +97,97 @@ namespace test127
         private Cord[] GetPath(int[,] energyMap)
         {
             Cord[] res = new Cord[energyMap.GetLength(1)];
+
+            int[,] seamMap = new int[energyMap.GetLength(0), energyMap.GetLength(1)];
+
+            for (int i = 0; i < energyMap.GetLength(0); i++)
+            {
+                seamMap[i, 0] = energyMap[i, 0];
+            }
+
+            for (int i = 1; i < seamMap.GetLength(1); i++)
+            {
+                for (int j = 0; j < seamMap.GetLength(0); j++)
+                {
+                    if (j == 0)
+                    {
+                        if (seamMap[0, i - 1] < seamMap[1, i - 1])
+                        {
+                            seamMap[j, i] = seamMap[0, i - 1] + energyMap[j, i];
+                        }
+                        else
+                        {
+                            seamMap[j, i] = seamMap[1, i - 1] + energyMap[j, i];
+                        }
+                    }
+                    else if (j == seamMap.GetLength(0) - 1)
+                    {
+                        if (seamMap[j, i - 1] < seamMap[j - 1, i - 1])
+                        {
+                            seamMap[j, i] = seamMap[j, i - 1] + energyMap[j, i];
+                        }
+                        else
+                        {
+                            seamMap[j, i] = seamMap[j - 1, i - 1] + energyMap[j, i];
+                        }
+                    }
+                    else
+                    {
+                        if (seamMap[j - 1, i - 1] < seamMap[j, i - 1] && seamMap[j - 1, i - 1] < seamMap[j + 1, i - 1])
+                        {
+                            seamMap[j, i] = seamMap[j - 1, i - 1] + energyMap[j, i];
+                        }
+                        else if (seamMap[j, i - 1] < seamMap[j + 1, i - 1])
+                        {
+                            seamMap[j, i] = seamMap[j, i - 1] + energyMap[j, i];
+                        }
+                        else
+                        {
+                            seamMap[j, i] = seamMap[j + 1, i - 1] + energyMap[j, i];
+                        }
+
+                    }
+                }
+            }
+
             Cord StartMin = new Cord();
             StartMin.Y = 0;
-            StartMin.Energy = energyMap[0, 0]; // first pixel
+            StartMin.Energy = seamMap[0, seamMap.GetLength(1) - 1]; // first pixel
 
             //get smallest energy in first line
-            for (int i = 1; i < energyMap.GetLength(0); i++)
+            for (int i = 1; i < seamMap.GetLength(0); i++)
             {
-                if (StartMin.Energy > energyMap[i, 0])
+                if (StartMin.Energy > seamMap[i, seamMap.GetLength(1) - 1])
                 {
-                    StartMin.Energy = energyMap[i, 0];
+                    StartMin.Energy = seamMap[i, seamMap.GetLength(1) - 1];
                     StartMin.X = i;
                 }
             }
-            res[0] = StartMin;
+            res[seamMap.GetLength(1) - 1] = StartMin;
 
-            //3 pixels under 
-            for (int y = 1; y < energyMap.GetLength(1); y++)
+            //3 pixels above 
+            for (int y = seamMap.GetLength(1) - 2; y >= 0; y--)
             {
-                int variableForSearching = res[y - 1].X;
+                int variableForSearching = res[y + 1].X;
                 Cord min = new Cord();
                 min.Y = y;
-                min.Energy = energyMap[variableForSearching, y];
+                min.Energy = seamMap[variableForSearching, y];
                 min.X = variableForSearching;
 
                 //left mid right
-                if (variableForSearching - 1 >= 0 && min.Energy > energyMap[variableForSearching - 1, y])
+                if (variableForSearching - 1 >= 0 && min.Energy > seamMap[variableForSearching - 1, y])
                 {
-                    min.Energy = energyMap[variableForSearching - 1, y];
+                    min.Energy = seamMap[variableForSearching - 1, y];
                     min.X = variableForSearching - 1;
                 }
-                else if (variableForSearching + 1 < energyMap.GetLength(0) && min.Energy > energyMap[variableForSearching + 1, y])
+                if (min.Energy > seamMap[variableForSearching, y])
                 {
-                    min.Energy = energyMap[variableForSearching + 1, y];
+                    min.Energy = seamMap[variableForSearching, y];
+                    min.X = variableForSearching;
+                }
+                if (variableForSearching + 1 < seamMap.GetLength(0) && min.Energy > seamMap[variableForSearching + 1, y])
+                {
+                    min.Energy = seamMap[variableForSearching + 1, y];
                     min.X = variableForSearching + 1;
                 }
 
@@ -334,7 +392,7 @@ namespace test127
             });
 
             bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
-            bit = await Task.Run(() => ScaleImageAsync(bit,progress, 10));
+            bit = await Task.Run(() => ScaleImageAsync(bit,progress, 0));
             bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
             bit = await Task.Run(() => ScaleImageAsync(bit, progress, 10));
 
