@@ -1,24 +1,14 @@
 ﻿using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace test127
 {
@@ -94,67 +84,76 @@ namespace test127
             public int Energy { get; set; }
         }
 
-        private Cord[] GetPath(int[,] energyMap)
+        private async Task<int[,]> SeamMap(short[,] energyMap, Cord[] oldPath = null)
+        {
+            int[,] seamMap = new int[energyMap.GetLength(0), energyMap.GetLength(1)];
+
+                for (int i = 0; i < energyMap.GetLength(0); i++)
+                {
+                    seamMap[i, 0] = energyMap[i, 0];
+                }
+
+                for (int y = 1; y < seamMap.GetLength(1); y++)
+                {
+                    for (int x = 0; x < seamMap.GetLength(0); x++)
+                    {
+                        //left border
+                        if (x == 0)
+                        {
+                            if (seamMap[0, y - 1] < seamMap[1, y - 1])
+                            {
+                                seamMap[0, y] = seamMap[0, y - 1] + energyMap[0, y];
+                            }
+                            else
+                            {
+                                seamMap[0, y] = seamMap[1, y - 1] + energyMap[1, y];
+                            }
+                        }
+                        //right border
+                        else if (x == seamMap.GetLength(0) - 1)
+                        {
+                            if (seamMap[x, y - 1] < seamMap[x - 1, y - 1])
+                            {
+                                seamMap[x, y] = seamMap[x, y - 1] + energyMap[x, y];
+                            }
+                            else
+                            {
+                                seamMap[x, y] = seamMap[x - 1, y - 1] + energyMap[x, y];
+                            }
+                        }
+                        //middle
+                        else
+                        {
+                            if (seamMap[x - 1, y - 1] < seamMap[x, y - 1] && seamMap[x - 1, y - 1] < seamMap[x + 1, y - 1])
+                            {
+                                seamMap[x,  y] = seamMap[x - 1, y - 1] + energyMap[x, y];
+                            }
+                            else if (seamMap[x, y - 1] < seamMap[x + 1, y - 1])
+                            {
+                                seamMap[x, y] = seamMap[x, y - 1] + energyMap[x, y];
+                            }
+                            else
+                            {
+                                seamMap[x, y] = seamMap[x + 1, y - 1] + energyMap[x, y];
+                            }
+
+                        }
+                    }
+                }
+
+            return seamMap;
+        }
+        private async Task<Cord[]> GetPath(short[,] energyMap, Cord[] oldPath = null)
         {
             Cord[] res = new Cord[energyMap.GetLength(1)];
 
-            int[,] seamMap = new int[energyMap.GetLength(0), energyMap.GetLength(1)];
-
-            for (int i = 0; i < energyMap.GetLength(0); i++)
-            {
-                seamMap[i, 0] = energyMap[i, 0];
-            }
-
-            for (int i = 1; i < seamMap.GetLength(1); i++)
-            {
-                for (int j = 0; j < seamMap.GetLength(0); j++)
-                {
-                    if (j == 0)
-                    {
-                        if (seamMap[0, i - 1] < seamMap[1, i - 1])
-                        {
-                            seamMap[j, i] = seamMap[0, i - 1] + energyMap[j, i];
-                        }
-                        else
-                        {
-                            seamMap[j, i] = seamMap[1, i - 1] + energyMap[j, i];
-                        }
-                    }
-                    else if (j == seamMap.GetLength(0) - 1)
-                    {
-                        if (seamMap[j, i - 1] < seamMap[j - 1, i - 1])
-                        {
-                            seamMap[j, i] = seamMap[j, i - 1] + energyMap[j, i];
-                        }
-                        else
-                        {
-                            seamMap[j, i] = seamMap[j - 1, i - 1] + energyMap[j, i];
-                        }
-                    }
-                    else
-                    {
-                        if (seamMap[j - 1, i - 1] < seamMap[j, i - 1] && seamMap[j - 1, i - 1] < seamMap[j + 1, i - 1])
-                        {
-                            seamMap[j, i] = seamMap[j - 1, i - 1] + energyMap[j, i];
-                        }
-                        else if (seamMap[j, i - 1] < seamMap[j + 1, i - 1])
-                        {
-                            seamMap[j, i] = seamMap[j, i - 1] + energyMap[j, i];
-                        }
-                        else
-                        {
-                            seamMap[j, i] = seamMap[j + 1, i - 1] + energyMap[j, i];
-                        }
-
-                    }
-                }
-            }
+            int[,] seamMap = await SeamMap(energyMap, oldPath);
 
             Cord StartMin = new Cord();
-            StartMin.Y = 0;
+            StartMin.Y = seamMap.GetLength(1) - 1;
             StartMin.Energy = seamMap[0, seamMap.GetLength(1) - 1]; // first pixel
 
-            //get smallest energy in first line
+            //get smallest energy in last line!!!!!
             for (int i = 1; i < seamMap.GetLength(0); i++)
             {
                 if (StartMin.Energy > seamMap[i, seamMap.GetLength(1) - 1])
@@ -165,30 +164,47 @@ namespace test127
             }
             res[seamMap.GetLength(1) - 1] = StartMin;
 
-            //3 pixels above 
+            //line above
             for (int y = seamMap.GetLength(1) - 2; y >= 0; y--)
             {
-                int variableForSearching = res[y + 1].X;
+                int variableForSearching = res[y + 1].X; //x where we have smallest seam 
                 Cord min = new Cord();
                 min.Y = y;
                 min.Energy = seamMap[variableForSearching, y];
                 min.X = variableForSearching;
 
-                //left mid right
-                if (variableForSearching - 1 >= 0 && min.Energy > seamMap[variableForSearching - 1, y])
+                //left
+                if (variableForSearching == 0)
                 {
-                    min.Energy = seamMap[variableForSearching - 1, y];
-                    min.X = variableForSearching - 1;
+                    if (min.Energy > seamMap[variableForSearching + 1, y])
+                    {
+                        min.Energy = seamMap[variableForSearching + 1, y];
+                        min.X = variableForSearching + 1;
+                    }
+
                 }
-                if (min.Energy > seamMap[variableForSearching, y])
+                //right
+                else if (variableForSearching == seamMap.GetLength(0) - 1)
                 {
-                    min.Energy = seamMap[variableForSearching, y];
-                    min.X = variableForSearching;
+                    if (min.Energy > seamMap[variableForSearching - 1, y])
+                    {
+                        min.Energy = seamMap[variableForSearching - 1, y];
+                        min.X = variableForSearching - 1;
+                    }
                 }
-                if (variableForSearching + 1 < seamMap.GetLength(0) && min.Energy > seamMap[variableForSearching + 1, y])
+                //mid
+                else
                 {
-                    min.Energy = seamMap[variableForSearching + 1, y];
-                    min.X = variableForSearching + 1;
+                    if (min.Energy > seamMap[variableForSearching + 1, y] && seamMap[variableForSearching - 1, y] > seamMap[variableForSearching + 1, y])
+                    {
+                        min.Energy = seamMap[variableForSearching + 1, y];
+                        min.X = variableForSearching + 1;
+                    }
+                    else if (min.Energy > seamMap[variableForSearching - 1, y])
+                    {
+                        min.Energy = seamMap[variableForSearching - 1, y];
+                        min.X = variableForSearching - 1;
+                    }
                 }
 
                 res[y] = min;
@@ -199,7 +215,53 @@ namespace test127
 
         //make this dont locking and unlocking whole time
 
-        private Bitmap DeletingPathLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, Cord[] pathToDelete)
+        private async Task<Bitmap> DeletingPathLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, Cord[] pathToDelete)
+        {
+            IntPtr ptr = bmpData.Scan0;
+
+            //making array to store energy
+            int bytes = Math.Abs(bmpData.Stride) * (int)bit.Height;
+            byte[] rgbValues = new byte[bytes];
+
+            // Copy the RGB values into the array.
+            System.Runtime.InteropServices.Marshal.Copy(ptr, rgbValues, 0, bytes);
+
+            int y = 0;
+            //for moving in rgbArray
+            for (int counter = 0; counter < rgbValues.Length; counter += bmpData.Stride)
+            {
+                //change with smallest energy with next one
+                int pixelToRemove = (pathToDelete[y].X * 4) + counter;
+
+                //changing next pixels in row
+                for (int counterX = pixelToRemove; counterX < counter + bmpData.Stride ; counterX += 4)
+                {
+                    if (counterX + 4 != counter + bmpData.Stride)
+                    {
+                        rgbValues[counterX] = rgbValues[counterX + 4];
+                        rgbValues[counterX + 1] = rgbValues[counterX + 5];
+                        rgbValues[counterX + 2] = rgbValues[counterX + 6];
+
+
+                    }
+                    else
+                    {
+                        rgbValues[counterX] = 255;
+                        rgbValues[counterX + 1] = 255;
+                        rgbValues[counterX + 2] = 255;
+                    }
+                   
+                }
+
+                y++;
+                System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
+
+            }
+
+            return bit;
+        }
+
+        private Bitmap DrawDeletingPathLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, Cord[] pathToDelete)
         {
             IntPtr ptr = bmpData.Scan0;
 
@@ -221,27 +283,15 @@ namespace test127
                 rgbValues[pixelToRemove + 1] = 0;
                 rgbValues[pixelToRemove + 2] = 0;
 
-                //changing next pixels in row
-                for (int counterX = pixelToRemove; counterX < counter + bmpData.Stride - 8; counterX += 4)
-                {
-                    rgbValues[counterX] = rgbValues[counterX + 4];
-                    rgbValues[counterX + 1] = rgbValues[counterX + 5];
-                    rgbValues[counterX + 2] = rgbValues[counterX + 6];
-                }
-
                 y++;
-                x += bmpData.Stride;
                 System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
-
             }
-
-
 
             return bit;
         }
 
 
-        private async Task<int> EnergyLockBits(int leftR, int leftG, int leftB, int midR, int midG, int midB, int rightR, int rightG, int rightB)
+        private async Task<short> EnergyLockBits(int leftR, int leftG, int leftB, int midR, int midG, int midB, int rightR, int rightG, int rightB)
         {
             double lEnergy = 0;
 
@@ -256,17 +306,17 @@ namespace test127
             {
                 rEnergy = Math.Pow(rightR - midR, 2) + Math.Pow(rightG - midG, 2) + Math.Pow(rightB - midB, 2);
             }
-            return (int)Math.Sqrt(lEnergy + rEnergy);
+            return (short)Math.Sqrt(lEnergy + rEnergy);
         }
 
-        private async Task<int[,]> EnergyMapWithLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, int DeletedCount = 0)
+        private async Task<short[,]> EnergyMapWithLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, int DeletedCount = 0, Cord[] cords = null, short[,] oldEnergyMap = null)
         {
             //first pixel in bitmap
             IntPtr ptr = bmpData.Scan0;
 
             //making array to store energy
             int bytes = Math.Abs(bmpData.Stride - (DeletedCount * 4)) * (int)bit.Height;
-            int[,] ress = new int[(int)bit.Width - DeletedCount, (int)bit.Height];
+            short[,] ress = new short[(int)bit.Width - DeletedCount, (int)bit.Height];
             byte[] rgbValues = new byte[bytes];
 
             // Copy the RGB values into the array.
@@ -277,36 +327,131 @@ namespace test127
 
             int x = 0;
             int y = 0;
-            for (int counter = 0; counter < rgbValues.Length; counter += 4)
+            if (cords == null)
             {
-                if (leftBorder == counter)
+                for (long counter = 0; counter < rgbValues.Length; counter += 4)
                 {
-                    ress[x, y] = await EnergyLockBits(
-                        -1, -1, -1
-                        , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
+                    if (leftBorder == counter)
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                            -1, -1, -1
+                            , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
+                            , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+                        leftBorder += bmpData.Stride - (DeletedCount * 4);
+                        x++;
+
+                    }
+                    else if (rightBorder == counter)
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                           rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                           , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
+                           , -1, -1, -1);
+                        rightBorder += bmpData.Stride - (DeletedCount * 4);
+                        x = 0;
+                        y++;
+
+                    }
+                    else
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                           rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                           , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
+                           , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+                        x++;
+                    }
+                }
+            }
+            else
+            {
+                int cordIterator = 0;
+                int forMovingInCords = 0;
+                for (long counter = 0; counter < rgbValues.Length; counter += 4)
+                {
+                    if (leftBorder == counter && (cords[cordIterator].X * 4) + forMovingInCords == counter)
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                            -1, -1, -1
+                            , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
+                            , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+                        leftBorder += bmpData.Stride - (DeletedCount * 4);
+                        x++;
+                        forMovingInCords += bmpData.Stride;
+                        cordIterator++;
+                    }
+                    else if (rightBorder == counter && (cords[cordIterator].X * 4) + forMovingInCords == counter)
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                          rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                          , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
+                          , -1, -1, -1);
+                        rightBorder += bmpData.Stride - (DeletedCount * 4);
+                        x = 0;
+                        y++;
+                        forMovingInCords += bmpData.Stride;
+                        cordIterator++;
+                    }
+                    else if ((cords[cordIterator].X * 4) + forMovingInCords == counter)
+                    {
+                        ress[x, y] = await EnergyLockBits(
+                        rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                        , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
                         , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-                    leftBorder += bmpData.Stride - (DeletedCount * 4);
-                    x++;
-                    continue;
-                }
-                else if (rightBorder == counter)
-                {
-                    ress[x, y] = await EnergyLockBits(
-                       rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
-                       , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
-                       , -1, -1, -1);
-                    rightBorder += bmpData.Stride - (DeletedCount * 4);
-                    x = 0;
-                    y++;
-                    continue;
-                }
-                else
-                {
-                    ress[x, y] = await EnergyLockBits(
-                       rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
-                       , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
-                       , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-                    x++;
+
+                        if (counter > 4)
+                        {
+                            ress[x - 1, y] = await EnergyLockBits(
+                            rgbValues[counter - 8], rgbValues[counter - 7], rgbValues[counter - 6]
+                           , rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                           , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]);
+                        }
+
+                        x++;
+                        forMovingInCords += bmpData.Stride + 4;
+                        cordIterator++;
+                    }
+                    else if (leftBorder == counter)
+                    {
+                        if (x < cords[cordIterator].X)
+                        {
+                            ress[x, y] = oldEnergyMap[x, y];
+                        }
+                        else
+                        {
+                            ress[x, y] = oldEnergyMap[x + 1, y];
+                        }
+                       
+                        x++;
+                        leftBorder += bmpData.Stride - (DeletedCount * 4);
+
+                    }
+                    else if (rightBorder == counter)
+                    {
+
+                        if (x < cords[cordIterator].X)
+                        {
+                            ress[x, y] = oldEnergyMap[x, y];
+                        }
+                        else
+                        {
+                            ress[x, y] = oldEnergyMap[x + 1, y];
+                        }
+                        x = 0;
+                        y++;
+                        rightBorder += bmpData.Stride - (DeletedCount * 4);
+                    }
+                    else
+                    {
+                        if (x < cords[cordIterator].X)
+                        {
+                            ress[x, y] = oldEnergyMap[x, y];
+                        }
+                        else
+                        {
+                            ress[x, y] = oldEnergyMap[x + 1, y];
+                        }
+                        x++;
+                    }
                 }
             }
 
@@ -325,18 +470,27 @@ namespace test127
             System.Drawing.Imaging.BitmapData bmpData =
             bit.LockBits(rectangle, System.Drawing.Imaging.ImageLockMode.ReadWrite,
             bit.PixelFormat);
-
-            var a = EnergyMapWithLockBits(bit, bmpData).Result;
+            var tmp = bit;
+            //var a = await EnergyMapWithLockBits(bit, bmpData);
+            //Cord[] cords111 = await GetPath(a);
+            
 
             for (int i = 0; i < scale; i++)
             {
-                var per = (i * 100) / scale;
 
+                var a = await EnergyMapWithLockBits(bit, bmpData, i);
+                Cord[] cords111 = await GetPath(a);
+                var per = (i * 100) / scale;
+                bit = DrawDeletingPathLockBits(bit, bmpData, cords111);
                 progress.Report(per);
 
+                Dispatcher.Invoke(new Action(() => {
 
-                Cord[] cords111 = GetPath(EnergyMapWithLockBits(bit, bmpData, i).Result);
-                bit = DeletingPathLockBits(bit, bmpData, cords111);
+                JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat)); }));
+
+
+                bit = await DeletingPathLockBits(bit, bmpData, cords111);
+                
             }
 
 
@@ -390,11 +544,24 @@ namespace test127
             {
                 pbStatus.Value = value;
             });
+            int h = 0;
+            int w = 0;
+            try
+            {
+                h = Convert.ToInt32(Height.Text);
+                w = Convert.ToInt32(width.Text);
+                
+            }
+            catch(FormatException ex)
+            {
+
+            }
+
 
             bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
-            bit = await Task.Run(() => ScaleImageAsync(bit,progress, 0));
+            bit = await Task.Run(() => ScaleImageAsync(bit, progress, h));
             bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
-            bit = await Task.Run(() => ScaleImageAsync(bit, progress, 10));
+            bit = await Task.Run(() => ScaleImageAsync(bit, progress, w));
 
             JamesBond.Width = bit.Width;
             JamesBond.Height = bit.Height;
