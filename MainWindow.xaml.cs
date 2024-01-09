@@ -3,6 +3,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -366,7 +367,7 @@ namespace test127
                 int forMovingInCords = 0;
                 for (int y1 = 0; y1 < ress.GetLength(1) - 1; y1++)
                 {
-                    for (int x1 = 0; x1 < ress.GetLength(1) - 1; x1++)
+                    for (int x1 = 0; x1 < ress.GetLength(0) - 1; x1++)
                     {
                         if (x1 < cords[cordIterator].X)
                         {
@@ -389,49 +390,94 @@ namespace test127
                     //change with smallest energy with next one
                     int pixelToRemove = (cords[y2].X * 4) + counterX;
 
-                    for (int counter = pixelToRemove; counter < counterX + bmpData.Stride; counter += 4)
-                    { 
-                        if (leftBorder == counter)
+                    if (cords[y2].X == 0)
+                    {
+                        ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                        -1, -1, -1
+                        , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2] // 4 bytes, alpha dont used
+                        , rgbValues[pixelToRemove + 4], rgbValues[pixelToRemove + 5], rgbValues[pixelToRemove + 6]);
+                    }
+                    else if (cords[y2].X == bmpData.Stride / 4)
+                    {
+                        ress[cords[y2].X - 1, cords[y2].Y] = await EnergyLockBits(
+                        rgbValues[pixelToRemove - 4], rgbValues[pixelToRemove - 3], rgbValues[pixelToRemove - 2]
+                        , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2]
+                        , -1, -1, -1);
+                    }
+                    else
+                    {
+                        ress[cords[y2].X - 1, cords[y2].Y] = await EnergyLockBits(
+                            rgbValues[pixelToRemove - 4], rgbValues[pixelToRemove - 3], rgbValues[pixelToRemove - 2]
+                            , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2]
+                            , rgbValues[pixelToRemove + 4], rgbValues[pixelToRemove + 5], rgbValues[pixelToRemove + 6]);
+
+                        if (cords[y2].X - 1 == 0)
                         {
-                            ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
-                            -1, -1, -1
-                            , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
-                            , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-                        }
-                        else if (rightBorder == counter)
-                        {
-                            ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
-                         rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
-                         , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
-                         , -1, -1, -1);
+                            ress[cords[y2].X - 1, cords[y2].Y] = await EnergyLockBits(
+                        -1, -1, -1
+                        , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2] // 4 bytes, alpha dont used
+                        , rgbValues[pixelToRemove + 4], rgbValues[pixelToRemove + 5], rgbValues[pixelToRemove + 6]);
                         }
                         else
                         {
-                            ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
-                       rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
-                       , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
-                       , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-
-                            if (counter - 4 == leftBorder)
-                            {
-                                ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
-                            -1, -1, -1
-                            , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
-                            , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-                            } 
-                            else
-                            {
-                                ress[x - 1, y] = await EnergyLockBits(
-                                rgbValues[counter - 8], rgbValues[counter - 7], rgbValues[counter - 6]
-                               , rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
-                               , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]);
-                            }
+                            ress[cords[y2].X - 1, cords[y2].Y] = await EnergyLockBits(
+                            rgbValues[pixelToRemove - 8], rgbValues[pixelToRemove - 7], rgbValues[pixelToRemove - 6]
+                           , rgbValues[pixelToRemove - 4], rgbValues[pixelToRemove - 3], rgbValues[pixelToRemove - 2]
+                           , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2]);
                         }
                     }
-                    leftBorder += bmpData.Stride - (DeletedCount * 4);
-                    rightBorder += bmpData.Stride - (DeletedCount * 4);
+
+
                     y2++;
+
+
                 }
+
+
+                    //for (int counter = pixelToRemove; counter < counterX + bmpData.Stride; counter += 4)
+                    //{ 
+                    //    if (leftBorder == counter)
+                    //    {
+                    //        ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                    //        -1, -1, -1
+                    //        , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
+                    //        , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+                    //    }
+                    //    else if (rightBorder == counter)
+                    //    {
+                    //        ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                    //     rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                    //     , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
+                    //     , -1, -1, -1);
+                    //    }
+                    //    else
+                    //    {
+
+                    //        ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                    //        rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                    //        , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
+                    //        , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+
+                    //        if (counter - 4 == leftBorder)
+                    //        {
+                    //            ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                    //        -1, -1, -1
+                    //        , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
+                    //        , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
+                    //        } 
+                    //        else
+                    //        {
+                    //            ress[cords[y2].X, cords[y2].Y] = await EnergyLockBits(
+                    //            rgbValues[counter - 8], rgbValues[counter - 7], rgbValues[counter - 6]
+                    //           , rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
+                    //           , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]);
+                    //        }
+                    //    }
+                    //}
+                    //leftBorder += bmpData.Stride - (DeletedCount * 4);
+                    //rightBorder += bmpData.Stride - (DeletedCount * 4);
+
+                
 
                 //    for (long counter = 0; counter < rgbValues.Length; counter += 4)
                 //{
