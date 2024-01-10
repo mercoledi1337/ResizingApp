@@ -583,7 +583,16 @@ namespace test127
         private async Task<Bitmap> ScaleImageAsync(Bitmap bit, IProgress<int> progress,  int percentW = 0)
         {
             int widthBitmap = (int)bit.Width;
-            int scale = (int)(widthBitmap * ((double)percentW / 100));
+            int scale = 0;
+            if (percentW > 100)
+            {
+                scale = (int)(widthBitmap * (((double)percentW - 100) / 100));
+            }
+            else
+            {
+                scale = (int)(widthBitmap * ((double)percentW / 100));
+            }
+            
             
             //System.Drawing.Rectangle rectangle = new System.Drawing.Rectangle(0, 0, bit.Width, bit.Height);
             //System.Drawing.Imaging.BitmapData bmpData =
@@ -595,38 +604,22 @@ namespace test127
             var arr = Array1DFromBitmap(bit);
 
             var a = await EnergyMapWithLockBits(bit.Width, bit.Height, bit.Width * 4, arr);
-
+            Bitmap resized = BitmapFromArray1D(arr, bit.Width, bit.Height);
             Cord[] cords111 = await GetPath(a);
 
-            
-                for (int i = 0; i < 50; i++)
+            if (percentW > 100)
+            {
+                for (int i = 0; i < scale; i++)
                 {
-                //get path then
-                arr = await DoublePathLockBits((bit.Width + i) * 4, bit.Height, arr, cords111);
-                a = doublePathInEnergyMap(cords111, a);
-                cords111 = await GetPath(a);
-                    
-                    //change energy map with new one where was path
-                   
-
-
-                    
+                    //get path then
+                    arr = await DoublePathLockBits((bit.Width + i) * 4, bit.Height, arr, cords111);
+                    a = doublePathInEnergyMap(cords111, a);
+                    cords111 = await GetPath(a);
                 }
-                
-            
-            
-            //else
-            //{
+                resized = BitmapFromArray1D(arr, bit.Width + scale, bit.Height);
+                resized = resized.Clone(new System.Drawing.Rectangle(0, 0, (int)resized.Width, resized.Height), resized.PixelFormat);
 
-                //for (int i = 1; i < scale; i++)
-                //{
-                //    a = await EnergyMapWithLockBits(bit.Width, bit.Height, bit.Width * 4, arr, i, cords111, a);
-                //    cords111 = await GetPath(a);
-
-
-                //    var per = (i * 100) / scale;
-                //    bit = BitmapFromArray1D(DrawDeletingPathLockBits(bit.Width * 4, arr, cords111), bit.Width, bit.Height);
-                //    progress.Report(per);
+                //change energy map with new one where was path
 
                 //    Dispatcher.Invoke(new Action(() =>
                 //    {
@@ -635,15 +628,51 @@ namespace test127
                 //    }));
 
 
-                //    arr = await DeletingPathLockBits(bit.Width * 4, arr, cords111);
-                //}
+            }
 
-            //}
 
+
+            else
+            {
+
+                for (int i = 1; i < scale; i++)
+                {
+                    a = await EnergyMapWithLockBits(bit.Width, bit.Height, bit.Width * 4, arr, i, cords111, a);
+                    cords111 = await GetPath(a);
+                    
+
+                    var per = (i * 100) / scale;
+                    bit = BitmapFromArray1D(DrawDeletingPathLockBits(bit.Width * 4, arr, cords111), bit.Width, bit.Height);
+                    
+
+                    progress.Report(per);
+
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        bit = BitmapFromArray1D(arr, bit.Width, bit.Height);
+                        JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat));
+                    }));
+
+
+                   arr = await DeletingPathLockBits(bit.Width * 4, arr, cords111);
+
+
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        bit = BitmapFromArray1D(arr, bit.Width, bit.Height);
+                        JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat));
+                    }));
+
+                }
+
+
+
+                resized = bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - scale, bit.Height), bit.PixelFormat);
+            }
+           
 
             //Bitmap resized = bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - scale, bit.Height), bit.PixelFormat);
-            Bitmap resized = BitmapFromArray1D(arr, bit.Width + 50, bit.Height);
-            resized = resized.Clone(new System.Drawing.Rectangle(0, 0, (int)resized.Width, resized.Height), resized.PixelFormat);
+
             return resized;
         }
 
