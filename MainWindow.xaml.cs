@@ -214,32 +214,32 @@ namespace test127
 
         //make this dont locking and unlocking whole time
 
-        private async Task<Bitmap> DeletingPathLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, Cord[] pathToDelete)
+        private async Task<byte[]> DeletingPathLockBits(int stride, byte[] rgbValues, Cord[] pathToDelete)
         {
-            IntPtr ptr = bmpData.Scan0;
+
 
             //making array to store energy
-            int bytes = Math.Abs(bmpData.Stride) * (int)bit.Height;
-            byte[] rgbValues = new byte[bytes];
+
 
             // Copy the RGB values into the array.
-            System.Runtime.InteropServices.Marshal.Copy(ptr, rgbValues, 0, bytes);
+
 
             int y = 0;
             //for moving in rgbArray
-            for (int counter = 0; counter < rgbValues.Length; counter += bmpData.Stride)
+            for (int counter = 0; counter < rgbValues.Length; counter +=stride)
             {
                 //change with smallest energy with next one
                 int pixelToRemove = (pathToDelete[y].X * 4) + counter;
 
                 //changing next pixels in row
-                for (int counterX = pixelToRemove; counterX < counter + bmpData.Stride; counterX += 4)
+                for (int counterX = pixelToRemove; counterX < counter + stride; counterX += 4)
                 {
-                    if (counterX + 4 != counter + bmpData.Stride)
+                    if (counterX + 4 != counter + stride)
                     {
                         rgbValues[counterX] = rgbValues[counterX + 4];
                         rgbValues[counterX + 1] = rgbValues[counterX + 5];
                         rgbValues[counterX + 2] = rgbValues[counterX + 6];
+                        rgbValues[counterX + 3] = rgbValues[counterX + 7];
 
 
                     }
@@ -253,27 +253,99 @@ namespace test127
                 }
 
                 y++;
-                System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
+               
 
             }
 
-            return bit;
+            return rgbValues;
         }
 
-        private Bitmap DrawDeletingPathLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, Cord[] pathToDelete)
+        private async Task<byte[]> DoublePathLockBits( int stride, int heigth, byte[] rgbValues1, Cord[] pathToDelete)
         {
-            IntPtr ptr = bmpData.Scan0;
 
-            //making array to store energy
-            int bytes = Math.Abs(bmpData.Stride) * (int)bit.Height;
+            int bytes = rgbValues1.Length + (heigth * 4);
             byte[] rgbValues = new byte[bytes];
 
-            // Copy the RGB values into the array.
-            System.Runtime.InteropServices.Marshal.Copy(ptr, rgbValues, 0, bytes);
 
-            int x = bmpData.Stride - 4;
+            //for(int i = 0; i < rgbValues1.Length; i++)
+            //{
+            //    rgbValues[i] = rgbValues1[i];
+            //}
+            int pam = 0;
+            int pam1 = 0;
+
+            //filling new one 
+            for (int counter = 0; counter < rgbValues1.Length; counter += stride)
+            {
+
+                //changing next pixels in row
+                for (int counterX = counter; counterX < counter + stride; counterX += 4)
+                {
+
+
+                    rgbValues[counterX + pam] = rgbValues1[counterX];
+                    rgbValues[counterX + pam + 1] = rgbValues1[counterX + 1];
+                    rgbValues[counterX + pam + 2] = rgbValues1[counterX + 2];
+                    rgbValues[counterX + pam + 3] = rgbValues1[counterX + 3];
+
+                }
+                pam += 4;
+
+            }
+            for (int counter = stride; counter < rgbValues.Length; counter += stride + 4)
+            
+            {
+                rgbValues[counter] = 255;
+                rgbValues[counter + 1] = 255;
+                rgbValues[counter + 2] = 255;
+                rgbValues[counter + 3] = 125;
+            }
+
+
+
+
+                int y = 0;
+           // for moving in rgbArray
+            for (int counter = 0; counter < rgbValues.Length; counter += stride + 4)
+                {
+                //change with smallest energy with next one
+                    int pixelToRemove = (pathToDelete[y].X * 4) + counter;
+
+                //changing next pixels in row
+                for (int counterX = counter + stride; counterX > pixelToRemove; counterX -= 4)
+                {
+                    rgbValues[counterX] = rgbValues[counterX - 4];
+                    rgbValues[counterX + 1] = rgbValues[counterX - 3];
+                    rgbValues[counterX + 2] = rgbValues[counterX - 2];
+                    rgbValues[counterX + 3] = rgbValues[counterX - 1];
+
+                }
+
+
+
+                y++;
+
+
+                }
+
+
+
+
+            return rgbValues;
+        }
+
+        private byte[] DrawDeletingPathLockBits(int stride, byte[] rgbValues, Cord[] pathToDelete)
+        {
+
+
+            //making array to store energy
+         
+
+
+
+            int x = stride - 4;
             int y = 0;
-            for (int counter = 0; counter < rgbValues.Length; counter += bmpData.Stride)
+            for (int counter = 0; counter < rgbValues.Length; counter += stride)
             {
                 //change with smallest energy with next one
                 int pixelToRemove = (pathToDelete[y].X * 4) + counter;
@@ -283,10 +355,10 @@ namespace test127
                 rgbValues[pixelToRemove + 2] = 0;
 
                 y++;
-                System.Runtime.InteropServices.Marshal.Copy(rgbValues, 0, ptr, bytes);
+
             }
 
-            return bit;
+            return rgbValues;
         }
 
 
@@ -308,21 +380,21 @@ namespace test127
             return (int)Math.Sqrt(lEnergy + rEnergy);
         }
 
-        private async Task<int[,]> EnergyMapWithLockBits(Bitmap bit, System.Drawing.Imaging.BitmapData bmpData, int DeletedCount = 0, Cord[] cords = null, int[,] oldEnergyMap = null)
+        private async Task<int[,]> EnergyMapWithLockBits(int width, int height, int stride, byte[] rgbValues, int DeletedCount = 0, Cord[] cords = null, int[,] oldEnergyMap = null)
         {
             //first pixel in bitmap
-            IntPtr ptr = bmpData.Scan0;
+           
 
             //making array to store energy
-            int bytes = Math.Abs(bmpData.Stride - (DeletedCount * 4)) * (int)bit.Height;
-            int[,] ress = new int[(int)bit.Width - DeletedCount, (int)bit.Height];
-            byte[] rgbValues = new byte[bytes];
+            
+            int[,] ress = new int[width - DeletedCount, height];
+          
 
             // Copy the RGB values into the array.
-            System.Runtime.InteropServices.Marshal.Copy(ptr, rgbValues, 0, bytes);
+           
 
             int leftBorder = 0;
-            int rightBorder = bmpData.Stride - 4 - (DeletedCount * 4);
+            int rightBorder = stride - 4 - (DeletedCount * 4);
 
             int x = 0;
             int y = 0;
@@ -336,7 +408,7 @@ namespace test127
                             -1, -1, -1
                             , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2] // 4 bytes, alpha dont used
                             , rgbValues[counter + 4], rgbValues[counter + 5], rgbValues[counter + 6]);
-                        leftBorder += bmpData.Stride - (DeletedCount * 4);
+                        leftBorder += stride - (DeletedCount * 4);
                         x++;
                         continue;
                     }
@@ -346,7 +418,7 @@ namespace test127
                            rgbValues[counter - 4], rgbValues[counter - 3], rgbValues[counter - 2]
                            , rgbValues[counter], rgbValues[counter + 1], rgbValues[counter + 2]
                            , -1, -1, -1);
-                        rightBorder += bmpData.Stride - (DeletedCount * 4);
+                        rightBorder += stride - (DeletedCount * 4);
                         x = 0;
                         y++;
                         continue;
@@ -385,7 +457,7 @@ namespace test127
 
                 cordIterator = 0;
                 int y2 = 0;
-                for (int counterX = 0; counterX < rgbValues.Length; counterX += bmpData.Stride)
+                for (int counterX = 0; counterX < rgbValues.Length; counterX += stride)
                 {
                     //change with smallest energy with next one
                     int pixelToRemove = (cords[y2].X * 4) + counterX;
@@ -397,7 +469,7 @@ namespace test127
                         , rgbValues[pixelToRemove], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2] // 4 bytes, alpha dont used
                         , rgbValues[pixelToRemove + 4], rgbValues[pixelToRemove + 5], rgbValues[pixelToRemove + 6]);
                     }
-                    else if (cords[y2].X == (bmpData.Stride - (DeletedCount * 4)) / 4)
+                    else if (cords[y2].X == (stride - (DeletedCount * 4)) / 4)
                     {
                         if (pixelToRemove + 1 >= rgbValues.Length)
                         {
@@ -451,45 +523,127 @@ namespace test127
             return ress;
         }
 
+        public static byte[] Array1DFromBitmap(Bitmap bmp)
+        {
+            if (bmp == null) throw new NullReferenceException("Bitmap is null");
+
+            Rectangle rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+            BitmapData data = bmp.LockBits(rect, ImageLockMode.ReadWrite, bmp.PixelFormat);
+            IntPtr ptr = data.Scan0;
+
+            //declare an array to hold the bytes of the bitmap
+            int numBytes = data.Stride * bmp.Height;
+            byte[] bytes = new byte[numBytes];
+
+            //copy the RGB values into the array
+            System.Runtime.InteropServices.Marshal.Copy(ptr, bytes, 0, numBytes);
+
+            bmp.UnlockBits(data);
+
+            return bytes;
+        }
+
+        public static Bitmap BitmapFromArray1D(byte[] bytes, int width, int height)
+        {
+            Bitmap grayBmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            Rectangle grayRect = new Rectangle(0, 0, grayBmp.Width, grayBmp.Height);
+            BitmapData grayData = grayBmp.LockBits(grayRect, ImageLockMode.ReadWrite, grayBmp.PixelFormat);
+            IntPtr grayPtr = grayData.Scan0;
+
+            int grayBytes = grayData.Stride * grayBmp.Height;
 
 
+            System.Runtime.InteropServices.Marshal.Copy(bytes, 0, grayPtr, grayBytes);
+
+            grayBmp.UnlockBits(grayData);
+            return grayBmp;
+        }
+
+        private int[,] doublePathInEnergyMap(Cord[] a, int[,] eMap)
+        {
+            int[,] res = new int[eMap.GetLength(0) + 1, eMap.GetLength(1)];
+
+            for(int y = 0;y < res.GetLength(1); y++)
+            {
+                for (int x = a[y].X + 2; x < res.GetLength(0); x++)
+                {
+                    res[x,y] = eMap[x - 1,y];
+                }
+                for (int x = 0; x <= a[y].X; x++)
+                {
+                    res[x, y] = eMap[x, y];
+                }
+                res[a[y].X, y] = 100000;
+                res[a[y].X + 1, y] = 100000;
+
+            }
+            return res;
+        }
 
         private async Task<Bitmap> ScaleImageAsync(Bitmap bit, IProgress<int> progress,  int percentW = 0)
         {
             int widthBitmap = (int)bit.Width;
             int scale = (int)(widthBitmap * ((double)percentW / 100));
+            
+            //System.Drawing.Rectangle rectangle = new System.Drawing.Rectangle(0, 0, bit.Width, bit.Height);
+            //System.Drawing.Imaging.BitmapData bmpData =
+            //bit.LockBits(rectangle, System.Drawing.Imaging.ImageLockMode.ReadWrite,
+            //bit.PixelFormat);
 
-            System.Drawing.Rectangle rectangle = new System.Drawing.Rectangle(0, 0, bit.Width, bit.Height);
-            System.Drawing.Imaging.BitmapData bmpData =
-            bit.LockBits(rectangle, System.Drawing.Imaging.ImageLockMode.ReadWrite,
-            bit.PixelFormat);
-            var tmp = bit;
-            var a = await EnergyMapWithLockBits(bit, bmpData);
+            //bit.UnlockBits(bmpData);
+
+            var arr = Array1DFromBitmap(bit);
+
+            var a = await EnergyMapWithLockBits(bit.Width, bit.Height, bit.Width * 4, arr);
+
             Cord[] cords111 = await GetPath(a);
 
-            bit = await DeletingPathLockBits(bit, bmpData, cords111);
-            for (int i = 1; i < scale; i++)
-            {
-
-                
-
-                a = await EnergyMapWithLockBits(bit, bmpData, i, cords111, a);
+            
+                for (int i = 0; i < 50; i++)
+                {
+                //get path then
+                arr = await DoublePathLockBits((bit.Width + i) * 4, bit.Height, arr, cords111);
+                a = doublePathInEnergyMap(cords111, a);
                 cords111 = await GetPath(a);
-                var per = (i * 100) / scale;
-                bit = DrawDeletingPathLockBits(bit, bmpData, cords111);
-                progress.Report(per);
-
-                Dispatcher.Invoke(new Action(() => {
-
-                JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat)); }));
+                    
+                    //change energy map with new one where was path
+                   
 
 
-                bit = await DeletingPathLockBits(bit, bmpData, cords111);
+                    
+                }
                 
-            }
+            
+            
+            //else
+            //{
+
+                //for (int i = 1; i < scale; i++)
+                //{
+                //    a = await EnergyMapWithLockBits(bit.Width, bit.Height, bit.Width * 4, arr, i, cords111, a);
+                //    cords111 = await GetPath(a);
 
 
-            Bitmap resized = bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - scale, bit.Height), bit.PixelFormat);
+                //    var per = (i * 100) / scale;
+                //    bit = BitmapFromArray1D(DrawDeletingPathLockBits(bit.Width * 4, arr, cords111), bit.Width, bit.Height);
+                //    progress.Report(per);
+
+                //    Dispatcher.Invoke(new Action(() =>
+                //    {
+                //        bit = BitmapFromArray1D(arr, bit.Width, bit.Height);
+                //        JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat));
+                //    }));
+
+
+                //    arr = await DeletingPathLockBits(bit.Width * 4, arr, cords111);
+                //}
+
+            //}
+
+
+            //Bitmap resized = bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - scale, bit.Height), bit.PixelFormat);
+            Bitmap resized = BitmapFromArray1D(arr, bit.Width + 50, bit.Height);
+            resized = resized.Clone(new System.Drawing.Rectangle(0, 0, (int)resized.Width, resized.Height), resized.PixelFormat);
             return resized;
         }
 
@@ -552,10 +706,9 @@ namespace test127
 
             }
 
-
-            bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
-            bit = await Task.Run(() => ScaleImageAsync(bit, progress, h));
-            bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
+            //bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
+            //bit = await Task.Run(() => ScaleImageAsync(bit, progress, h));
+            //bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
             bit = await Task.Run(() => ScaleImageAsync(bit, progress, w));
 
             JamesBond.Width = bit.Width;
