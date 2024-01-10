@@ -399,7 +399,10 @@ namespace test127
                     }
                     else if (cords[y2].X == (bmpData.Stride - (DeletedCount * 4)) / 4)
                     {
-  
+                        if (pixelToRemove + 1 >= rgbValues.Length)
+                        {
+                            continue;
+                        }
                         var rgb1 = await EnergyLockBits(
                         rgbValues[pixelToRemove - 4], rgbValues[pixelToRemove - 3], rgbValues[pixelToRemove - 2]
                            , rgbValues[pixelToRemove ], rgbValues[pixelToRemove + 1], rgbValues[pixelToRemove + 2]
