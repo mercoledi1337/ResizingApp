@@ -382,16 +382,8 @@ namespace test127
 
         private async Task<int[,]> EnergyMapWithLockBits(int width, int height, int stride, byte[] rgbValues, int DeletedCount = 0, Cord[] cords = null, int[,] oldEnergyMap = null)
         {
-            //first pixel in bitmap
-           
-
-            //making array to store energy
             
             int[,] ress = new int[width - DeletedCount, height];
-          
-
-            // Copy the RGB values into the array.
-           
 
             int leftBorder = 0;
             int rightBorder = stride - 4 - (DeletedCount * 4);
@@ -453,8 +445,6 @@ namespace test127
                     cordIterator++;
                 }
 
-
-
                 cordIterator = 0;
                 int y2 = 0;
                 for (int counterX = 0; counterX < rgbValues.Length; counterX += stride)
@@ -513,11 +503,9 @@ namespace test127
                         }
                     }
 
-
                     y2++;
 
                 }
-
             }
 
             return ress;
@@ -593,13 +581,6 @@ namespace test127
                 scale = (int)(widthBitmap * ((double)percentW / 100));
             }
             
-            
-            //System.Drawing.Rectangle rectangle = new System.Drawing.Rectangle(0, 0, bit.Width, bit.Height);
-            //System.Drawing.Imaging.BitmapData bmpData =
-            //bit.LockBits(rectangle, System.Drawing.Imaging.ImageLockMode.ReadWrite,
-            //bit.PixelFormat);
-
-            //bit.UnlockBits(bmpData);
 
             var arr = Array1DFromBitmap(bit);
 
@@ -611,21 +592,25 @@ namespace test127
             {
                 for (int i = 0; i < scale; i++)
                 {
-                    //get path then
+
+
                     arr = await DoublePathLockBits((bit.Width + i) * 4, bit.Height, arr, cords111);
                     a = doublePathInEnergyMap(cords111, a);
                     cords111 = await GetPath(a);
+                    var per = (i * 100) / scale;
+                    progress.Report(per);
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        resized = BitmapFromArray1D(arr, bit.Width + i + 1, bit.Height);
+                        resized = resized.Clone(new System.Drawing.Rectangle(0, 0, (int)resized.Width, resized.Height), resized.PixelFormat);
+                        JamesBond.Width = resized.Width;
+                        JamesBond.Height = resized.Height;
+                        JamesBond.Source = ToBitmapImage(resized);
+                    }));
+
                 }
                 resized = BitmapFromArray1D(arr, bit.Width + scale, bit.Height);
                 resized = resized.Clone(new System.Drawing.Rectangle(0, 0, (int)resized.Width, resized.Height), resized.PixelFormat);
-
-                //change energy map with new one where was path
-
-                //    Dispatcher.Invoke(new Action(() =>
-                //    {
-                //        bit = BitmapFromArray1D(arr, bit.Width, bit.Height);
-                //        JamesBond.Source = ToBitmapImage(bit.Clone(new System.Drawing.Rectangle(0, 0, (int)bit.Width - i, bit.Height), bit.PixelFormat));
-                //    }));
 
 
             }
@@ -735,9 +720,9 @@ namespace test127
 
             }
 
-            //bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
-            //bit = await Task.Run(() => ScaleImageAsync(bit, progress, h));
-            //bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
+            bit.RotateFlip(RotateFlipType.Rotate90FlipNone);
+            bit = await Task.Run(() => ScaleImageAsync(bit, progress, h));
+            bit.RotateFlip(RotateFlipType.Rotate270FlipNone);
             bit = await Task.Run(() => ScaleImageAsync(bit, progress, w));
 
             JamesBond.Width = bit.Width;
