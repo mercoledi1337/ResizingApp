@@ -187,11 +187,17 @@
                         Background="Transparent"
                         Command="{Binding DiscoveryViewCommand}" Click="Button_Click_1"/>
 
-                <Button Content="Better Quality"
+                <Button Content="Save image"
                         Height="50"
                         Foreground="White"
                         FontSize="14"
-                        Background="Transparent"
+                        Background="Transparent" Click="Button_Click_2"
+                             />
+            <Button Content="Stop algorithm"
+                        Height="50"
+                        Foreground="White"
+                        FontSize="14"
+                        Background="Transparent" Click="Button_Click_3"
                              />
 
             </StackPanel>
@@ -213,7 +219,9 @@
             <Image x:Name="JamesBond" 
                    Grid.Row="1"
                    Grid.Column="1"
-                   Margin="10,0,0,70"/>
+                   Margin="10,0,0,70"
+                   Width="600"
+                   />
             
         </StackPanel>
             
